@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Frontend Mini Project-To-Do & Weather</title>
+  <meta name="description" content="Two mini-projects: a To-Do app using localStorage and a Weather app using the OpenWeatherMap API." />
+  <style>
+    :root {
+      --bg: #0f1724;
+      --card: #0b1220;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --glass: rgba(255,255,255,0.03);
+      --radius: 12px;
+      --gap: 18px;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, sans-serif;
+      background: linear-gradient(180deg,#071020 0%, #071827 100%);
+      color: #e6eef8;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    header h1 { font-size: 1.4rem; margin-bottom: 6px; }
+    header p { color: var(--muted); margin: 0; }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: 0 6px 18px rgba(2,6,23,0.7);
+    }
+    h2 { margin: 0 0 8px; font-size: 1rem; }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+
+    /* To-Do Styles */
+    .todo-form { display: flex; gap: 8px; margin-bottom: 12px; }
+    input.todo-input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: transparent;
+      color: inherit;
+    }
+    button.btn {
+      background: linear-gradient(90deg,var(--accent),#4f46e5);
+      border: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: #04203b;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    ul.todo-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    li.todo-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--glass);
+    }
+    .todo-text { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    .todo-text.done { text-decoration: line-through; color: rgba(255,255,255,0.45); }
+    .todo-meta { font-size: 0.78rem; color: var(--muted); }
+    .todo-actions { display: flex; gap: 8px; }
+    .icon-btn {
+      background: transparent;
+      border: 0;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,0.04); }
+
+    /* Weather Styles */
+    .weather-form { display: flex; gap: 8px; margin-bottom: 12px; }
+    .weather-card { display: flex; flex-direction: column; gap: 8px; }
+    .weather-row { display: flex; align-items: center; gap: 12px; }
+    .weather-temp { font-size: 2.2rem; font-weight: 700; }
+    .weather-desc { font-size: 0.95rem; color: var(--muted); }
+    .note { font-size: 0.82rem; color: var(--muted); }
+
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Frontend Mini Projects — To-Do & Weather</h1>
+    <p class="muted">Simple practice projects built while learning frontend.</p>
+  </header>
+
+  <main>
+    <!-- To-Do App -->
+    <section class="card" id="todo-app">
+      <h2>To-Do App (localStorage)</h2>
+      <p class="muted">Add, mark done, edit or delete tasks. Saved locally.</p>
+      <form class="todo-form" id="todo-form">
+        <input id="todo-input" class="todo-input" type="text" placeholder="Add a new task" required />
+        <button class="btn" type="submit">Add</button>
+      </form>
+      <ul id="todo-list" class="todo-list"></ul>
+      <div class="muted" style="margin-top:8px;">
+        <span id="todo-count">0 tasks</span> •
+        <button class="icon-btn" id="clear-completed">Clear completed</button>
+        <button class="icon-btn" id="clear-all">Clear all</button>
+      </div>
+    </section>
+
+    <!-- Weather App -->
+    <section class="card" id="weather-app">
+      <h2>Weather App (OpenWeatherMap)</h2>
+      <p class="muted">Check current weather by city name.</p>
+      <form id="weather-form" class="weather-form">
+        <input id="city" name="city" placeholder="Enter city (e.g. Mumbai)" required />
+        <button class="btn" type="submit">Get</button>
+      </form>
+      <div id="weather-result" class="weather-card">
+        <div class="note" id="weather-note">No data yet. Enter a city to check weather.</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Built by Yashu while learning frontend development.</footer>
+
+  <script>
+    const OPENWEATHER_API_KEY = 'da779823dea541f41c8f903e3d252fb5'; // Replace with your key
+
+    // Helper
+    const $ = (sel, ctx = document) => ctx.querySelector(sel);
+
+    // ===== To-Do App =====
+    (function setupTodoApp(){
+      const TODO_KEY = 'frontend_todos_v1';
+      const form = $('#todo-form');
+      const input = $('#todo-input');
+      const list = $('#todo-list');
+      const count = $('#todo-count');
+      const clearCompletedBtn = $('#clear-completed');
+      const clearAllBtn = $('#clear-all');
+      let todos = [];
+
+      function save(){ localStorage.setItem(TODO_KEY, JSON.stringify(todos)); }
+      function load(){ todos = JSON.parse(localStorage.getItem(TODO_KEY) || "[]"); }
+
+      function render(){
+        list.innerHTML = '';
+        if(!todos.length){
+          list.innerHTML = '<li class="todo-item muted">No tasks yet.</li>';
+        } else {
+          todos.slice().reverse().forEach(todo => {
+            const li = document.createElement('li');
+            li.className = 'todo-item';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = todo.done;
+            checkbox.addEventListener('change', () => {
+              todo.done = checkbox.checked; save(); render();
+            });
+
+            const text = document.createElement('div');
+            text.className = 'todo-text' + (todo.done ? ' done' : '');
+            text.textContent = todo.text;
+
+            const actions = document.createElement('div');
+            actions.className = 'todo-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'icon-btn';
+            editBtn.innerHTML = '✎';
+            editBtn.addEventListener('click', () => {
+              const updated = prompt('Edit task:', todo.text);
+              if(updated !== null){ todo.text = updated.trim(); save(); render(); }
+            });
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'icon-btn';
+            delBtn.innerHTML = '🗑';
+            delBtn.addEventListener('click', () => {
+              if(confirm('Delete this task?')){ todos = todos.filter(t => t.id !== todo.id); save(); render(); }
+            });
+
+            actions.append(editBtn, delBtn);
+            li.append(checkbox, text, actions);
+            list.appendChild(li);
+          });
+        }
+        count.textContent = `${todos.filter(t => !t.done).length} / ${todos.length} active`;
+      }
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        const val = input.value.trim();
+        if(!val) return;
+        todos.push({ id: Date.now(), text: val, done:false });
+        save(); render();
+        input.value = '';
+      });
+
+      clearCompletedBtn.addEventListener('click', () => {
+        todos = todos.filter(t => !t.done); save(); render();
+      });
+
+      clearAllBtn.addEventListener('click', () => {
+        if(confirm('Clear all tasks?')){ todos = []; save(); render(); }
+      });
+
+      load(); render();
+    })();
+
+    // ===== Weather App =====
+    (function setupWeather(){
+      const form = $('#weather-form');
+      const cityInput = $('#city');
+      const result = $('#weather-result');
+      const note = $('#weather-note');
+      const CACHE_TTL = 1000 * 60 * 10;
+
+      function show(msg){ result.innerHTML = `<div class="note">${msg}</div>`; }
+
+      async function fetchWeather(city){
+        if(!OPENWEATHER_API_KEY) throw new Error('No API key');
+        const cacheKey = `weather_${city.toLowerCase()}`;
+        const cached = localStorage.getItem(cacheKey);
+        if(cached){
+          const {ts, data} = JSON.parse(cached);
+          if(Date.now() - ts < CACHE_TTL) return data;
+        }
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${OPENWEATHER_API_KEY}`;
+        const res = await fetch(url);
+        if(!res.ok) throw new Error('City not found');
+        const data = await res.json();
+        localStorage.setItem(cacheKey, JSON.stringify({ts: Date.now(), data}));
+        return data;
+      }
+
+      function renderWeather(data){
+        const w = data.weather[0];
+        const m = data.main;
+        const icon = `https://openweathermap.org/img/wn/${w.icon}@2x.png`;
+        result.innerHTML = `
+          <div class="weather-row">
+            <div>
+              <div class="weather-temp">${Math.round(m.temp)}°C</div>
+              <div class="weather-desc">${w.main} — ${w.description}</div>
+            </div>
+            <div><img src="${icon}" alt="${w.description}" width="80" height="80"></div>
+          </div>
+          <div class="weather-row muted">
+            <div>${data.name}, ${data.sys.country}</div>
+            <div>Feels like ${Math.round(m.feels_like)}°C • Humidity ${m.humidity}%</div>
+          </div>`;
+      }
+
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const city = cityInput.value.trim();
+        if(!city){ show('Enter a city name'); return; }
+        note.textContent = 'Loading...';
+        try {
+          const data = await fetchWeather(city);
+          renderWeather(data);
+        } catch(err) {
+          show('Error: ' + err.message);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
